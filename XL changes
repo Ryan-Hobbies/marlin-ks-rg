@@ -1,0 +1,7 @@
+configuration.h
+#define DELTA_DIAGONAL_ROD 306.0 // mm
+#define DELTA_SMOOTH_ROD_OFFSET 210.9 // mm 
+#define DELTA_PRINTABLE_RADIUS 153.0
+#define Z_RAISE_BEFORE_HOMING 20 // (in mm) Raise Z before homing (G28) for Probe Clearance.
+#define MANUAL_Z_HOME_POS 494.0 // For delta: Distance between nozzle and print surface after homing.
+#define Z_PROBE_OFFSET_FROM_EXTRUDER 0.14 // Increase this if the first layer is too thin. Was .125
