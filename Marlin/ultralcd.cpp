@@ -159,6 +159,8 @@ bool lcd_oldcardstatus;
 #endif
 #endif//ULTIPANEL
 
+bool isAwake = true;
+
 menuFunc_t currentMenu = lcd_status_screen; /* function pointer to the currently active menu */
 uint32_t lcd_next_update_millis;
 uint8_t lcd_status_update_delay;
@@ -231,10 +233,7 @@ static void lcd_status_screen()
 static void lcd_return_to_status()
 {
     encoderPosition = 0;
-// Ryan's Mod 2/26/15... changed timeout screen to main menu instead of status screen (thanks mildmojo)
-// LCD updates on status screen cause stuttering of the print head and "blobs" on the finished print, especially at higher speeds.
-//    currentMenu = lcd_status_screen; // <-- all menus return & time out to status screen
-	currentMenu = lcd_main_menu; // <-- all menus return & time out to main menu
+    currentMenu = lcd_status_screen; // <-- all menus return & time out to status screen
 }
 
 static void lcd_sdcard_pause()
@@ -1045,7 +1044,8 @@ void lcd_init()
 
 void lcd_update()
 {
-    static unsigned long timeoutToStatus = 0;
+    static unsigned long timeoutToSleep = 0;
+    bool wakeup = false;
 
     #ifdef LCD_HAS_SLOW_BUTTONS
     slow_buttons = lcd_implementation_read_slow_buttons(); // buttons which take too long to read in interrupt context
@@ -1104,40 +1104,51 @@ void lcd_update()
             lcdDrawUpdate = 1;
             encoderPosition += encoderDiff / ENCODER_PULSES_PER_STEP;
             encoderDiff = 0;
-            timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
+            timeoutToSleep = millis() + LCD_SLEEP_TIMEOUT_MS;
+            if (!isAwake) {
+                wakeup = true;
+            }
         }
-        if (LCD_CLICKED)
-            timeoutToStatus = millis() + LCD_TIMEOUT_TO_STATUS;
+        if (LCD_CLICKED) {
+            timeoutToSleep = millis() + LCD_SLEEP_TIMEOUT_MS;
+            if (!isAwake) {
+                wakeup = true;
+            }
+        }
+
+        if (wakeup) {
+            lcd_awaken();
+        }
+
 #endif//ULTIPANEL
 
+		if (isAwake && !wakeup) {
 #ifdef DOGLCD        // Changes due to different driver architecture of the DOGM display
-        blink++;     // Variable for fan animation and alive dot
-        u8g.firstPage();
-        do
-        {
-            u8g.setFont(u8g_font_6x10_marlin);
-            u8g.setPrintPos(125,0);
-            if (blink % 2) u8g.setColorIndex(1); else u8g.setColorIndex(0); // Set color for the alive dot
-            u8g.drawPixel(127,63); // draw alive dot
-            u8g.setColorIndex(1); // black on white
-            (*currentMenu)();
-            if (!lcdDrawUpdate)  break; // Terminate display update, when nothing new to draw. This must be done before the last dogm.next()
-        } while( u8g.nextPage() );
+	        blink++;     // Variable for fan animation and alive dot
+	        u8g.firstPage();
+	        do
+	        {
+	            u8g.setFont(u8g_font_6x10_marlin);
+	            u8g.setPrintPos(125,0);
+	            if (blink % 2) u8g.setColorIndex(1); else u8g.setColorIndex(0); // Set color for the alive dot
+	            u8g.drawPixel(127,63); // draw alive dot
+	            u8g.setColorIndex(1); // black on white
+	            (*currentMenu)();
+	            if (!lcdDrawUpdate)  break; // Terminate display update, when nothing new to draw. This must be done before the last dogm.next()
+	        } while( u8g.nextPage() );
 #else
-        (*currentMenu)();
+	        (*currentMenu)();
 #endif
+		}
 
 #ifdef LCD_HAS_STATUS_INDICATORS
         lcd_implementation_update_indicators();
 #endif
 
 #ifdef ULTIPANEL
-// Ryan's edit 3/3/15 - remove redraw of status screen by commenting the section below (per mildmojo's recommendation)
-//        if(timeoutToStatus < millis() && currentMenu != lcd_status_screen)
-//        {
-//            lcd_return_to_status();
-//            lcdDrawUpdate = 2;
-//        }
+		if (timeoutToSleep < millis()) {
+			lcd_sleep();
+		}
 #endif//ULTIPANEL
         if (lcdDrawUpdate == 2)
             lcd_implementation_clear();
@@ -1181,6 +1192,24 @@ void lcd_setcontrast(uint8_t value)
     u8g.setContrast(lcd_contrast);
 }
 #endif
+
+void lcd_sleep() {
+	isAwake = false;
+	lcd_off();
+}
+
+void lcd_awaken() {
+    isAwake = true;
+    lcd_on();
+}
+
+void lcd_on() {
+	u8g.sleepOff();
+}
+
+void lcd_off() {
+	u8g.sleepOn();
+}
 
 #ifdef ULTIPANEL
 /* Warning: This function is called from interrupt context */

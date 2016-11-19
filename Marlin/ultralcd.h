@@ -17,13 +17,19 @@
   void lcd_setcontrast(uint8_t value);
 #endif
 
+  extern bool isAwake;
+  void lcd_sleep();
+  void lcd_awaken();
+  void lcd_on();
+  void lcd_off();
+
   static unsigned char blink = 0;	// Variable for visualisation of fan rotation in GLCD
 
   #define LCD_MESSAGEPGM(x) lcd_setstatuspgm(PSTR(x))
   #define LCD_ALERTMESSAGEPGM(x) lcd_setalertstatuspgm(PSTR(x))
 
   #define LCD_UPDATE_INTERVAL 100
-  #define LCD_TIMEOUT_TO_STATUS 15000
+  #define LCD_SLEEP_TIMEOUT_MS 8000 // Allow enough time for autohome so user isn't annoyed
 
   #ifdef ULTIPANEL
   void lcd_buttons_update();
@@ -42,7 +48,7 @@
   extern int absPreheatHotendTemp;
   extern int absPreheatHPBTemp;
   extern int absPreheatFanSpeed;
-    
+
   void lcd_buzz(long duration,uint16_t freq);
   bool lcd_clicked();
 
